@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+
+  <!-- p5.js library — gives us drawing functions like ellipse(), rect(), createCanvas() -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.13/lib/p5.js"></script>
+  <!-- p5.sound addon — not used yet, but here in case you want to add audio later -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.13/lib/addons/p5.sound.min.js"></script>
+
+  <style>
+    /* remove default browser margins so the canvas can fill the whole screen */
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+    /* canvases are inline elements by default, which can leave a tiny gap below them.
+       display: block removes that gap */
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<main></main>
+<script>
+
+// ---- GLOBAL VARIABLES ----
+// these are accessible from every function below
+
+// the 7 colors used throughout the sketch, as hex strings
+let palette = ['#ff2e88', '#ffde59', '#00e5a8', '#7c4dff', '#ff6b35', '#00c2ff', '#1a1a2e'];
+
+// this array will hold one object per grid square, each with its own
+// position, color, speed, and shape
+let squares = [];
+
+// distance in pixels between each square in the grid
+let spacing = 20;
+
+// which palette color is currently selected for painting with the mouse
+// (changed by pressing number keys 1-7)
+let currentColorIndex = 0;
+
+
+// ---- SETUP ----
+// runs once, when the sketch first loads
+function setup() {
+  // create a canvas that fills the entire browser window
+  createCanvas(windowWidth, windowHeight);
+
+  // switch color mode to Hue/Saturation/Brightness instead of the default Red/Green/Blue
+  // this makes it easier to shift colors smoothly later on
+  colorMode(HSB, 360, 100, 100);
+
+  // draw squares from their center point, not their top-left corner
+  rectMode(CENTER);
+
+  // build the initial grid of squares
+  buildGrid();
+}
+
+
+// ---- BUILD GRID ----
+// creates (or re-creates) every square in the grid
+// pulled into its own function so it can be re-run whenever the window resizes
+function buildGrid() {
+  squares = []; // clear out any old squares first
+
+  let col = 0; // tracks which column we're on, so we can alternate direction
+
+  // outer loop: move across the screen left to right
+  for (let x = 20; x < width; x += spacing) {
+
+    // even columns drift upward (-1), odd columns drift downward (+1)
+    let dir = col % 2 === 0 ? -1 : 1;
+
+    // inner loop: move down the screen top to bottom, for this column
+    for (let y = 0; y < height; y += spacing) {
+
+      // pick a random starting color from the palette
+      let c = color(random(palette));
+
+      // add a new square object to the array, storing everything it needs
+      squares.push({
+        x: x,
+        y: y,
+        hue: hue(c),                  // color's hue value
+        sat: saturation(c) * 1.3,     // color's saturation, boosted for extra vividness
+        speed: dir * 0.3,             // vertical speed — direction depends on column
+        isCircle: random() < 0.5      // 50/50 chance this square is drawn as a circle instead
+      });
+    }
+    col++; // move to next column
+  }
+}
+
+
+// ---- WINDOW RESIZED ----
+// a built-in p5.js function that runs automatically whenever the browser window changes size
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight); // match canvas to new window size
+  buildGrid(); // rebuild the grid so it fills the new dimensions properly
+}
+
+
+// ---- DRAW ----
+// runs continuously, about 60 times per second — this is the animation loop
+function draw() {
+  background(10); // wipe the canvas each frame with a near-black color
+
+  // loop through every square and update + draw it
+  for (let s of squares) {
+
+    // move the square vertically based on its stored speed
+    s.y += s.speed;
+
+    // add a tiny horizontal wobble using a sine wave, so movement isn't perfectly straight
+    s.x += sin(frameCount * 0.02 + s.y * 0.1) * 0.02;
+
+    // if the square has drifted off the top or bottom of the screen...
+    if (s.y < 0 || s.y > height) {
+      // ...wrap it around to the opposite edge
+      s.y = s.y < 0 ? height : 0;
+
+      // and give it a brand new random color, so painted colors don't last forever
+      let c = color(random(palette));
+      s.hue = hue(c);
+      s.sat = saturation(c) * 1.3;
+    }
+
+    noStroke(); // no outline around shapes
+    fill(s.hue, s.sat, 100); // use this square's stored color, at full brightness
+
+    // draw as a circle or square depending on what was randomly chosen in buildGrid()
+    if (s.isCircle) {
+      ellipse(s.x, s.y, 14, 14);
+    } else {
+      rect(s.x, s.y, 14, 14);
+    }
+  }
+}
+
+
+// ---- KEY PRESSED ----
+// a built-in p5.js function that runs once, whenever any key is pressed
+function keyPressed() {
+  // if the key pressed is a number between 1 and 7...
+  if (key >= '1' && key <= '7') {
+    // ...select that palette color for painting (array is 0-indexed, keys are 1-indexed)
+    currentColorIndex = int(key) - 1;
+  }
+}
+
+
+// ---- MOUSE DRAGGED ----
+// a built-in p5.js function that runs continuously while the mouse button
+// is held down and moving
+function mouseDragged() {
+  // check every square to see if the mouse is near it
+  for (let s of squares) {
+    // if this square is within 30 pixels of the cursor...
+    if (dist(mouseX, mouseY, s.x, s.y) < 30) {
+      // ...repaint it with the currently selected palette color
+      let c = color(palette[currentColorIndex]);
+      s.hue = hue(c);
+      s.sat = saturation(c) * 1.3;
+    }
+  }
+}
+
+</script>
+</body>
+</html>
